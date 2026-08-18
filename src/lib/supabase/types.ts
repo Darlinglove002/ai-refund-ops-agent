@@ -14,11 +14,18 @@ export type TransactionStatus = "succeeded" | "refunded";
 
 export type Plan = "starter" | "pro" | "business";
 
+type Table<Row, InsertExtra extends keyof Row> = {
+  Row: Row;
+  Insert: Partial<Row> & Pick<Row, InsertExtra>;
+  Update: Partial<Row>;
+  Relationships: [];
+};
+
 export interface Database {
   public: {
     Tables: {
-      mock_users: {
-        Row: {
+      mock_users: Table<
+        {
           id: string;
           name: string;
           email: string;
@@ -26,17 +33,11 @@ export interface Database {
           signup_date: string;
           last_active_at: string | null;
           created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["mock_users"]["Row"]> & {
-          name: string;
-          email: string;
-          plan: Plan;
-          signup_date: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["mock_users"]["Row"]>;
-      };
-      mock_transactions: {
-        Row: {
+        },
+        "name" | "email" | "plan" | "signup_date"
+      >;
+      mock_transactions: Table<
+        {
           id: string;
           user_id: string;
           amount: number;
@@ -44,42 +45,32 @@ export interface Database {
           occurred_at: string;
           status: TransactionStatus;
           created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["mock_transactions"]["Row"]> & {
-          user_id: string;
-          amount: number;
-          occurred_at: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["mock_transactions"]["Row"]>;
-      };
-      tickets: {
-        Row: {
+        },
+        "user_id" | "amount" | "occurred_at"
+      >;
+      tickets: Table<
+        {
           id: string;
           user_id: string | null;
           customer_message: string;
           status: TicketStatus;
           created_at: string;
           updated_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["tickets"]["Row"]> & {
-          customer_message: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["tickets"]["Row"]>;
-      };
-      ticket_actions: {
-        Row: {
+        },
+        "customer_message"
+      >;
+      ticket_actions: Table<
+        {
           id: string;
           ticket_id: string;
           action_type: string;
           payload: Record<string, unknown>;
           created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["ticket_actions"]["Row"]> & {
-          ticket_id: string;
-          action_type: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["ticket_actions"]["Row"]>;
-      };
+        },
+        "ticket_id" | "action_type"
+      >;
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 }
