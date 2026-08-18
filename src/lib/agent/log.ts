@@ -1,4 +1,4 @@
-import type { createServiceClient } from "@/lib/supabase/server";
+import type { createServiceClient } from "@/lib/supabase/serviceClient";
 
 export async function logAction(
   supabase: ReturnType<typeof createServiceClient>,
