@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import type { createServiceClient } from "@/lib/supabase/server";
+import type { createServiceClient } from "@/lib/supabase/serviceClient";
 
 export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {

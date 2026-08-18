@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/serviceClient";
 import { SYSTEM_PROMPT } from "./prompt";
 import { TOOL_DEFINITIONS, executeTool } from "./tools";
 import { validateDecision, type ProposedDecision } from "./guardrails";
