@@ -190,12 +190,18 @@ export function DecisionPanel({
 
   if (ticket.status === "completed") {
     const executed = [...actions].reverse().find((a) => a.action_type === "mock_refund_executed");
+    const wasAutoApproved = actions.some((a) => a.action_type === "auto_approved");
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Completed</CardTitle>
         </CardHeader>
         <CardContent>
+          {wasAutoApproved && (
+            <p className="mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              ⚡ Auto-approved — under the threshold, no human clicked anything
+            </p>
+          )}
           <p className="text-base text-muted-foreground">
             {executed
               ? `Refund of ${formatMoney(Number((executed.payload as { amount: number }).amount))} executed (mock).`
@@ -255,8 +261,8 @@ export function DecisionPanel({
         </CardHeader>
         <CardContent>
           <p className="mb-1 text-xs font-medium text-red-700 dark:text-red-400">
-            ✕ The agent DID propose a decision here, but it failed the guardrail check — that's why there's no
-            Approve button
+            ✕ The agent DID propose a decision here, but it failed the guardrail check — that&apos;s why
+            there&apos;s no Approve button
           </p>
           <p className="mb-4 text-base text-muted-foreground">{p.reason}</p>
           <div className="flex flex-wrap gap-2">

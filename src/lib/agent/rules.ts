@@ -5,6 +5,14 @@
 
 export const REFUND_WINDOW_DAYS = 14;
 
+// Refunds at or under this amount execute automatically once they've
+// cleared the guardrail — no human in the loop for them. This is a purely
+// operational threshold: it never overrides or bypasses the guardrail
+// check itself, it only decides who has to click the button on a proposal
+// that already passed. Anything above it, and every denial regardless of
+// amount, still goes to a human.
+export const AUTO_APPROVE_MAX_AMOUNT = 20;
+
 export interface RuleInput {
   lastActiveAt: string | null;
   transactionAmount: number;

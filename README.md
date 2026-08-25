@@ -21,6 +21,10 @@ actually matter when you let an LLM agent touch a real business process:
   **96.4% system accuracy** (agent correct, or the guardrail caught its
   mistake), **0/28 over-limit refunds ever leaked past the guardrail**.
   Full breakdown: [`evals/results.md`](evals/results.md).
+- **Not every decision needs a human, but the ones that matter always do.**
+  Small refunds that clear the guardrail auto-execute; anything larger, or
+  any denial, goes to a person — see [Risk-tiered automation](#risk-tiered-automation-and-a-concurrency-bug-that-actually-got-caught)
+  below, including a real concurrency bug that setup caught.
 
 ## How it works
 
@@ -98,6 +102,31 @@ it out and declines on its own. But the project doesn't rely on that: the
 how often the prompt-level defense fails and the guardrail is what actually
 stops an over-limit refund from reaching a human as an approvable option.
 
+### Risk-tiered automation, and a concurrency bug that actually got caught
+
+Not every refund needs a human. Once a decision has cleared the guardrail,
+refunds at or under $20 ([`AUTO_APPROVE_MAX_AMOUNT`](src/lib/agent/rules.ts))
+execute immediately with no click — everything above that, and every
+denial regardless of amount, still goes to a person. The threshold is
+pure operational policy that sits *after* the guardrail, never a way
+around it: a proposal that failed the guardrail check can never
+auto-approve, no matter how small the amount.
+
+Adding that threshold surfaced a real bug: [`decide/route.ts`](src/app/api/tickets/[id]/decide/route.ts)
+originally read a ticket's status, checked it was `awaiting_approval`,
+then wrote the outcome — two requests hitting Approve on the same ticket
+at once (two support reps, or a double-click) would both pass the check
+and both execute a refund. Fixed with an atomic conditional update
+(`UPDATE ... WHERE status = 'awaiting_approval'`, checking a row actually
+came back) so only one request can ever win. Verified by firing two
+concurrent `Approve` calls at the same ticket: one returns success, the
+other gets a clean "already resolved" instead of a duplicate refund.
+
+The `/tickets` overview page aggregates every run into a small dashboard —
+tickets processed, auto- vs. human-approved counts, guardrail catches, and
+total mock dollars refunded — pulled straight from the `ticket_actions`
+log with no separate analytics pipeline.
+
 ## Stack
 
 - Next.js (App Router, TypeScript, Tailwind CSS)
@@ -138,10 +167,12 @@ Stripe is mocked ([`src/lib/agent/mockStripe.ts`](src/lib/agent/mockStripe.ts))
    npm run dev
    ```
 
-6. Open `/tickets`, and either click a ticket and **Analyze**, or use the
-   **Demo Mode** bar at the top — click **Prime N scenarios** once to
-   pre-run the agent on all 5 seeded tickets so the demo buttons are
-   instant afterward.
+6. Open `/tickets` — it opens on a small stats dashboard, empty until you
+   process a ticket. Click a ticket and **Analyze**, or use the **Demo
+   Mode** bar at the top — click **Prime N scenarios** once to pre-run the
+   agent on all 5 seeded tickets so the demo buttons are instant
+   afterward. One of them (**Clear refund**) resolves with no click at all
+   — it's under the auto-approve threshold.
 
 ## Data model
 
