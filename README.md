@@ -5,8 +5,10 @@ request, pulls their real account and payment history, applies the refund
 policy, and proposes a decision — but it never moves money itself. A human
 always clicks Approve, Reject, or Modify before anything executes.
 
-This isn't another CRUD demo. It's a demonstration of the patterns that
-actually matter when you let an LLM agent touch a real business process:
+This isn't a product — nobody's billing team is going to deploy this repo
+as-is. It's a reference implementation of the patterns that actually
+matter when you let an LLM agent touch a real business process, aimed at
+other engineers figuring out how to do the same thing safely:
 
 - **Guardrails live in code, not just the prompt.** Every proposed decision
   is re-derived from the database independently of the model's own
@@ -161,36 +163,56 @@ Stripe is mocked ([`src/lib/agent/mockStripe.ts`](src/lib/agent/mockStripe.ts))
 
 ## Setup
 
-1. Install dependencies:
+### Option A: local, one command (recommended)
 
-   ```bash
-   npm install
-   ```
+Needs [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+running — no Supabase account required.
 
-2. Create a Supabase project (or reuse an existing one) at
-   [supabase.com](https://supabase.com).
+```bash
+npm install
+npm run setup   # starts a local Supabase stack in Docker, applies
+                 # migrations + seed data, writes .env.local for you
+```
 
+`npm run setup` runs `supabase start` under the hood, which pulls a few
+Docker images the first time (a few minutes) and every time after is
+near-instant. It leaves the stack running in the background — `npm run
+db:stop` shuts it down, `npm run setup` again brings it back with the same
+data (or `npx supabase db reset` for a clean slate).
+
+The one thing it can't fill in for you is `ANTHROPIC_API_KEY` — add that to
+`.env.local` yourself from [console.anthropic.com](https://console.anthropic.com).
+Then:
+
+```bash
+npm run dev
+```
+
+### Option B: hosted Supabase
+
+If you'd rather not run Docker, or want the app talking to a real hosted
+project:
+
+1. `npm install`
+2. Create a project at [supabase.com](https://supabase.com).
 3. In the Supabase Dashboard, open **SQL Editor** and run, in order:
    - [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — creates the schema
+   - [`supabase/migrations/0002_grants.sql`](supabase/migrations/0002_grants.sql) — table grants (hosted projects already have these by default; harmless to run again)
    - [`supabase/seed.sql`](supabase/seed.sql) — loads mock customers, payments, and 5 starter tickets
-
 4. Copy `.env.example` to `.env.local` and fill in:
    - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Project Settings -> API
    - `SUPABASE_SERVICE_ROLE_KEY` — same page, server-side only, **never** commit this
    - `ANTHROPIC_API_KEY` — from [console.anthropic.com](https://console.anthropic.com)
+5. `npm run dev`
 
-5. Run the dev server:
+### Either way
 
-   ```bash
-   npm run dev
-   ```
-
-6. Open `/tickets` — it opens on a small stats dashboard, empty until you
-   process a ticket. Click a ticket and **Analyze**, or use the **Demo
-   Mode** bar at the top — click **Prime N scenarios** once to pre-run the
-   agent on all 5 seeded tickets so the demo buttons are instant
-   afterward. One of them (**Clear refund**) resolves with no click at all
-   — it's under the auto-approve threshold.
+Open `/tickets` — it opens on a small stats dashboard, empty until you
+process a ticket. Click a ticket and **Analyze**, or use the **Demo Mode**
+bar at the top — click **Prime N scenarios** once to pre-run the agent on
+all 5 seeded tickets so the demo buttons are instant afterward. One of
+them (**Clear refund**) resolves with no click at all — it's under the
+auto-approve threshold.
 
 ## Data model
 

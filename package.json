@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "eval": "tsx --env-file=.env.local evals/run.ts"
+    "eval": "tsx --env-file=.env.local evals/run.ts",
+    "setup": "node scripts/setup-local.mjs",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
