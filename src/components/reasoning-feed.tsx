@@ -198,7 +198,7 @@ export function ReasoningFeed({ actions }: { actions: TicketActionRow[] }) {
   return (
     <ol className="space-y-3">
       {items.map((item) => (
-        <li key={item.id} className="flex gap-3 text-sm">
+        <li key={item.id} className="flex gap-3 text-base">
           <span
             className={cn(
               "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs",
