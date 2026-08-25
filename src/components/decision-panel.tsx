@@ -58,6 +58,7 @@ export function DecisionPanel({
 
   const ModifyForm = showModify ? (
     <div className="mt-4 space-y-3 rounded-md border p-3">
+      <p className="text-sm font-medium">Set the decision yourself:</p>
       <div className="flex gap-2">
         <label className="flex items-center gap-1.5 text-sm">
           <input
@@ -138,10 +139,10 @@ export function DecisionPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Ready to analyze</CardTitle>
+          <CardTitle className="text-lg">Ready to analyze</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-3 text-sm text-muted-foreground">
+          <p className="mb-3 text-base text-muted-foreground">
             The agent hasn&apos;t looked at this ticket yet.
           </p>
           <Button disabled={loading} onClick={() => run(() => postJSON(`/api/tickets/${ticket.id}/analyze`))}>
@@ -157,10 +158,10 @@ export function DecisionPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Analysis in progress</CardTitle>
+          <CardTitle className="text-lg">Analysis in progress</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-3 text-sm text-muted-foreground">
+          <p className="mb-3 text-base text-muted-foreground">
             This ticket started analysis but hasn&apos;t reached a decision — normal if a run is active in
             another tab, or if a previous run was interrupted. Resuming re-runs the tool-calling loop; every
             prior step stays in the log below.
@@ -178,10 +179,10 @@ export function DecisionPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Rejected</CardTitle>
+          <CardTitle className="text-lg">Rejected</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">A human rejected this ticket. No refund was issued.</p>
+          <p className="text-base text-muted-foreground">A human rejected this ticket. No refund was issued.</p>
         </CardContent>
       </Card>
     );
@@ -192,10 +193,10 @@ export function DecisionPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Completed</CardTitle>
+          <CardTitle className="text-lg">Completed</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             {executed
               ? `Refund of ${formatMoney(Number((executed.payload as { amount: number }).amount))} executed (mock).`
               : "Resolved as a denial — no refund issued."}
@@ -211,12 +212,15 @@ export function DecisionPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">
+          <CardTitle className="text-lg">
             Proposed: {p.decision === "refund" ? `Refund ${formatMoney(p.refundAmount)}` : "Deny"}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-muted-foreground">{p.reason}</p>
+          <p className="mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+            ✅ This proposal passed the guardrail check
+          </p>
+          <p className="mb-4 text-base text-muted-foreground">{p.reason}</p>
           <div className="flex flex-wrap gap-2">
             <Button
               disabled={loading}
@@ -232,7 +236,7 @@ export function DecisionPanel({
               Reject
             </Button>
             <Button variant="ghost" disabled={loading} onClick={() => setShowModify((v) => !v)}>
-              Modify
+              Override decision
             </Button>
           </div>
           {ModifyForm}
@@ -247,14 +251,14 @@ export function DecisionPanel({
     return (
       <Card className="border-red-200 dark:border-red-900">
         <CardHeader>
-          <CardTitle className="text-base">🛡 Guardrail blocked this ticket</CardTitle>
+          <CardTitle className="text-lg">🛡 Guardrail blocked this ticket</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-muted-foreground">{p.reason}</p>
-          <p className="mb-3 text-xs text-muted-foreground">
-            The agent&apos;s proposal wasn&apos;t shown as an option because it didn&apos;t match policy against
-            the customer&apos;s actual data. Set a decision manually, or reject the ticket outright.
+          <p className="mb-1 text-xs font-medium text-red-700 dark:text-red-400">
+            ✕ The agent DID propose a decision here, but it failed the guardrail check — that's why there's no
+            Approve button
           </p>
+          <p className="mb-4 text-base text-muted-foreground">{p.reason}</p>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -264,7 +268,7 @@ export function DecisionPanel({
               Reject
             </Button>
             <Button variant="ghost" disabled={loading} onClick={() => setShowModify((v) => !v)}>
-              Set decision manually
+              Override decision
             </Button>
           </div>
           {ModifyForm}
@@ -278,10 +282,10 @@ export function DecisionPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Needs manual review</CardTitle>
+        <CardTitle className="text-lg">Needs manual review</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="mb-4 text-sm text-muted-foreground">
+        <p className="mb-4 text-base text-muted-foreground">
           The agent didn&apos;t submit a proposal for this ticket. Review the log below and decide manually.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -293,7 +297,7 @@ export function DecisionPanel({
             Reject
           </Button>
           <Button variant="ghost" disabled={loading} onClick={() => setShowModify((v) => !v)}>
-            Set decision manually
+            Override decision
           </Button>
         </div>
         {ModifyForm}

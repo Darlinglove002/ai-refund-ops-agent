@@ -14,10 +14,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const { ticket, actions, customer, latestTransactionAmount } = detail;
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">{customer?.name ?? "Unknown customer"}</h2>
+          <h2 className="text-xl font-semibold">{customer?.name ?? "Unknown customer"}</h2>
           {customer && (
             <p className="text-sm text-muted-foreground">
               {customer.email} · {customer.plan} plan · signed up{" "}
@@ -26,15 +26,15 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             </p>
           )}
         </div>
-        <StatusBadge status={ticket.status} />
+        <StatusBadge status={ticket.status} className="text-sm" />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Customer message</CardTitle>
+          <CardTitle className="text-lg">Customer message</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="whitespace-pre-wrap text-sm">{ticket.customer_message}</p>
+          <p className="whitespace-pre-wrap text-base">{ticket.customer_message}</p>
         </CardContent>
       </Card>
 
@@ -43,7 +43,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
       <Separator />
 
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Agent activity log</h3>
+        <h3 className="mb-3 text-base font-semibold text-muted-foreground">Agent activity log</h3>
         <ReasoningFeed actions={actions} />
       </div>
     </div>
