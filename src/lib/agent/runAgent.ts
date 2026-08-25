@@ -3,7 +3,9 @@ import { createServiceClient } from "@/lib/supabase/serviceClient";
 import { SYSTEM_PROMPT } from "./prompt";
 import { TOOL_DEFINITIONS, executeTool } from "./tools";
 import { validateDecision, type ProposedDecision } from "./guardrails";
+import { AUTO_APPROVE_MAX_AMOUNT } from "./rules";
 import { logAction } from "./log";
+import { mockIssueRefund } from "./mockStripe";
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOOL_TURNS = 6;
@@ -164,13 +166,32 @@ async function finalizeDecision(
       reason: guardrail.reason,
       expected: guardrail.expected,
     });
-  } else {
-    await logAction(supabase, ticketId, "decision_proposed", {
-      decision: proposed.decision,
-      refundAmount: guardrail.finalAmount,
-      reason: proposed.reason,
-      flags: guardrail.flags,
+    await supabase.from("tickets").update({ status: "awaiting_approval" }).eq("id", ticketId);
+    return;
+  }
+
+  await logAction(supabase, ticketId, "decision_proposed", {
+    decision: proposed.decision,
+    refundAmount: guardrail.finalAmount,
+    reason: proposed.reason,
+    flags: guardrail.flags,
+  });
+
+  // Low-value refunds that already cleared the guardrail don't need a human
+  // to click a button — this only ever fires on the same path that already
+  // passed the check above, never as a way around it. Denials, and any
+  // refund over the threshold, still always go to a human.
+  const canAutoApprove =
+    proposed.decision === "refund" && guardrail.flags.length === 0 && guardrail.finalAmount <= AUTO_APPROVE_MAX_AMOUNT;
+
+  if (canAutoApprove) {
+    await logAction(supabase, ticketId, "auto_approved", {
+      reason: `Refund of ${guardrail.finalAmount} is at or under the $${AUTO_APPROVE_MAX_AMOUNT} auto-approve threshold.`,
     });
+    const charge = await mockIssueRefund(guardrail.finalAmount);
+    await logAction(supabase, ticketId, "mock_refund_executed", charge);
+    await supabase.from("tickets").update({ status: "completed" }).eq("id", ticketId);
+    return;
   }
 
   await supabase.from("tickets").update({ status: "awaiting_approval" }).eq("id", ticketId);

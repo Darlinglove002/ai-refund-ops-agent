@@ -169,6 +169,17 @@ function buildDisplayItems(actions: TicketActionRow[]): DisplayItem[] {
         });
         break;
 
+      case "auto_approved":
+        items.push({
+          id: action.id,
+          icon: "⚡",
+          title: "Auto-approved — no human review needed",
+          detail: String(p.reason),
+          tone: "ok",
+          createdAt: action.created_at,
+        });
+        break;
+
       case "mock_refund_executed":
         items.push({
           id: action.id,

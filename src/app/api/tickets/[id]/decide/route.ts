@@ -10,6 +10,31 @@ interface DecideBody {
   note?: string;
 }
 
+// Atomically transitions the ticket out of "awaiting_approval" — the WHERE
+// clause on status means only one of two concurrent requests (e.g. two
+// support reps opening the same ticket) can ever win this update. Without
+// it, both requests would read status="awaiting_approval", both pass the
+// check, and both execute a refund.
+async function claimTicket(
+  supabase: ReturnType<typeof createServiceClient>,
+  id: string,
+  targetStatus: "rejected" | "completed",
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("tickets")
+    .update({ status: targetStatus })
+    .eq("id", id)
+    .eq("status", "awaiting_approval")
+    .select("id")
+    .maybeSingle();
+  return Boolean(data);
+}
+
+const ALREADY_RESOLVED = NextResponse.json(
+  { error: "This ticket was already resolved by another request (or another tab)." },
+  { status: 409 },
+);
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = (await request.json()) as DecideBody;
@@ -35,8 +60,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   if (body.action === "reject") {
+    if (!(await claimTicket(supabase, id, "rejected"))) return ALREADY_RESOLVED;
     await logAction(supabase, id, "human_rejected", { note: body.note ?? null });
-    await supabase.from("tickets").update({ status: "rejected" }).eq("id", id);
     return NextResponse.json({ ok: true });
   }
 
@@ -59,9 +84,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
+    if (!(await claimTicket(supabase, id, "completed"))) return ALREADY_RESOLVED;
+
     const proposal = lastAction.payload as { decision: "refund" | "deny"; refundAmount: number };
     await logAction(supabase, id, "human_approved", { proposal });
-    await finalize(supabase, id, proposal.decision, proposal.refundAmount);
+    await executeIfRefund(supabase, id, proposal.decision, proposal.refundAmount);
     return NextResponse.json({ ok: true });
   }
 
@@ -97,16 +124,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
+  if (!(await claimTicket(supabase, id, "completed"))) return ALREADY_RESOLVED;
+
   await logAction(supabase, id, "human_modified", {
     decision: body.decision,
     refundAmount: body.refundAmount,
     note: body.note ?? null,
   });
-  await finalize(supabase, id, body.decision, body.refundAmount);
+  await executeIfRefund(supabase, id, body.decision, body.refundAmount);
   return NextResponse.json({ ok: true });
 }
 
-async function finalize(
+async function executeIfRefund(
   supabase: ReturnType<typeof createServiceClient>,
   ticketId: string,
   decision: "refund" | "deny",
@@ -116,5 +145,4 @@ async function finalize(
     const charge = await mockIssueRefund(refundAmount);
     await logAction(supabase, ticketId, "mock_refund_executed", charge);
   }
-  await supabase.from("tickets").update({ status: "completed" }).eq("id", ticketId);
 }

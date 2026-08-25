@@ -7,9 +7,9 @@ import type { TicketStatus } from "@/lib/supabase/types";
 export const DEMO_SCENARIOS = [
   {
     key: "refund",
-    label: "Clear refund",
+    label: "Clear refund (auto-approved)",
     email: "alice@example.com",
-    description: "Recent payment, no activity since — textbook refund.",
+    description: "Recent payment, no activity since, under the auto-approve threshold — resolves with no human click.",
   },
   {
     key: "deny",

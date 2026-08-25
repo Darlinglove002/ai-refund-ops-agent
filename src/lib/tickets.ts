@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/types";
+import type { Database, TicketStatus } from "@/lib/supabase/types";
 
 export type TicketRow = Database["public"]["Tables"]["tickets"]["Row"];
 export type TicketActionRow = Database["public"]["Tables"]["ticket_actions"]["Row"];
@@ -69,4 +69,79 @@ export async function getTicketDetail(id: string): Promise<TicketDetail | null> 
   }
 
   return { ticket, actions: actions ?? [], customer, latestTransactionAmount };
+}
+
+export interface DashboardStats {
+  totalTickets: number;
+  byStatus: Record<TicketStatus, number>;
+  autoApprovedCount: number;
+  humanApprovedCount: number;
+  humanRejectedCount: number;
+  guardrailBlockedCount: number;
+  refundCount: number;
+  totalRefunded: number;
+}
+
+const EMPTY_STATUS_COUNTS: Record<TicketStatus, number> = {
+  new: 0,
+  analyzing: 0,
+  awaiting_approval: 0,
+  approved: 0,
+  rejected: 0,
+  completed: 0,
+};
+
+// Aggregated client-side over every ticket_actions row — fine at this
+// project's scale (a demo with dozens of tickets, not a production
+// analytics workload). A real deployment would push this into a SQL view.
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const supabase = createServiceClient();
+  const [{ data: tickets }, { data: actions }] = await Promise.all([
+    supabase.from("tickets").select("status"),
+    supabase.from("ticket_actions").select("action_type, payload"),
+  ]);
+
+  const byStatus = { ...EMPTY_STATUS_COUNTS };
+  for (const t of tickets ?? []) {
+    byStatus[t.status] = (byStatus[t.status] ?? 0) + 1;
+  }
+
+  let autoApprovedCount = 0;
+  let humanApprovedCount = 0;
+  let humanRejectedCount = 0;
+  let guardrailBlockedCount = 0;
+  let refundCount = 0;
+  let totalRefunded = 0;
+
+  for (const a of actions ?? []) {
+    switch (a.action_type) {
+      case "auto_approved":
+        autoApprovedCount++;
+        break;
+      case "human_approved":
+        humanApprovedCount++;
+        break;
+      case "human_rejected":
+        humanRejectedCount++;
+        break;
+      case "guardrail_blocked":
+        guardrailBlockedCount++;
+        break;
+      case "mock_refund_executed":
+        refundCount++;
+        totalRefunded += Number((a.payload as { amount?: number }).amount ?? 0);
+        break;
+    }
+  }
+
+  return {
+    totalTickets: tickets?.length ?? 0,
+    byStatus,
+    autoApprovedCount,
+    humanApprovedCount,
+    humanRejectedCount,
+    guardrailBlockedCount,
+    refundCount,
+    totalRefunded,
+  };
 }
