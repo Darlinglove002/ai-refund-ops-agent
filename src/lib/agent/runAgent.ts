@@ -170,19 +170,36 @@ async function finalizeDecision(
     return;
   }
 
+  const recentRefundCount =
+    proposed.decision === "refund" ? await countRecentRefunds(supabase, userId, 30) : 0;
+
+  const flags = [...guardrail.flags];
+  if (recentRefundCount > 0) {
+    flags.push(
+      `velocity: ${recentRefundCount} refund${recentRefundCount === 1 ? "" : "s"} already issued to this customer in the last 30 days`,
+    );
+  }
+
   await logAction(supabase, ticketId, "decision_proposed", {
     decision: proposed.decision,
     refundAmount: guardrail.finalAmount,
     reason: proposed.reason,
-    flags: guardrail.flags,
+    flags,
   });
 
   // Low-value refunds that already cleared the guardrail don't need a human
   // to click a button — this only ever fires on the same path that already
   // passed the check above, never as a way around it. Denials, and any
-  // refund over the threshold, still always go to a human.
+  // refund over the threshold, still always go to a human. A customer who
+  // already got a refund in the last 30 days also always goes to a human,
+  // regardless of amount — a crude stand-in for the fraud/velocity checks a
+  // real payments system would run (this repo has no IP/device/card data to
+  // check against, so this counts repeat requests from the same customer
+  // instead of inventing signals the schema doesn't actually have).
   const canAutoApprove =
-    proposed.decision === "refund" && guardrail.flags.length === 0 && guardrail.finalAmount <= AUTO_APPROVE_MAX_AMOUNT;
+    proposed.decision === "refund" &&
+    flags.length === 0 &&
+    guardrail.finalAmount <= AUTO_APPROVE_MAX_AMOUNT;
 
   if (canAutoApprove) {
     await logAction(supabase, ticketId, "auto_approved", {
@@ -195,4 +212,24 @@ async function finalizeDecision(
   }
 
   await supabase.from("tickets").update({ status: "awaiting_approval" }).eq("id", ticketId);
+}
+
+async function countRecentRefunds(
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string,
+  days: number,
+): Promise<number> {
+  const { data: userTickets } = await supabase.from("tickets").select("id").eq("user_id", userId);
+  const ticketIds = (userTickets ?? []).map((t) => t.id);
+  if (ticketIds.length === 0) return 0;
+
+  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const { count } = await supabase
+    .from("ticket_actions")
+    .select("id", { count: "exact", head: true })
+    .in("ticket_id", ticketIds)
+    .eq("action_type", "mock_refund_executed")
+    .gte("created_at", since);
+
+  return count ?? 0;
 }

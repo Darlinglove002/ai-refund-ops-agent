@@ -80,6 +80,8 @@ export interface DashboardStats {
   guardrailBlockedCount: number;
   refundCount: number;
   totalRefunded: number;
+  feedbackGoodCount: number;
+  feedbackBadCount: number;
 }
 
 const EMPTY_STATUS_COUNTS: Record<TicketStatus, number> = {
@@ -112,6 +114,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   let guardrailBlockedCount = 0;
   let refundCount = 0;
   let totalRefunded = 0;
+  let feedbackGoodCount = 0;
+  let feedbackBadCount = 0;
 
   for (const a of actions ?? []) {
     switch (a.action_type) {
@@ -131,6 +135,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         refundCount++;
         totalRefunded += Number((a.payload as { amount?: number }).amount ?? 0);
         break;
+      case "human_feedback":
+        if ((a.payload as { rating?: string }).rating === "good") feedbackGoodCount++;
+        else feedbackBadCount++;
+        break;
     }
   }
 
@@ -143,5 +151,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     guardrailBlockedCount,
     refundCount,
     totalRefunded,
+    feedbackGoodCount,
+    feedbackBadCount,
   };
 }
