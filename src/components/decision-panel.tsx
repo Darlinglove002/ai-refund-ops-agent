@@ -175,6 +175,40 @@ export function DecisionPanel({
     );
   }
 
+  const existingFeedback = actions.find((a) => a.action_type === "human_feedback")?.payload as
+    | { rating: "good" | "bad" }
+    | undefined;
+
+  const FeedbackWidget = (
+    <div className="mt-4 border-t pt-3">
+      {existingFeedback ? (
+        <p className="text-xs text-muted-foreground">
+          Feedback recorded: {existingFeedback.rating === "good" ? "👍 agent reasoned well" : "👎 agent got it wrong"}
+        </p>
+      ) : (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Did the agent reason well here?</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loading}
+            onClick={() => run(() => postJSON(`/api/tickets/${ticket.id}/feedback`, { rating: "good" }))}
+          >
+            👍
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loading}
+            onClick={() => run(() => postJSON(`/api/tickets/${ticket.id}/feedback`, { rating: "bad" }))}
+          >
+            👎
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   if (ticket.status === "rejected") {
     return (
       <Card>
@@ -183,6 +217,7 @@ export function DecisionPanel({
         </CardHeader>
         <CardContent>
           <p className="text-base text-muted-foreground">A human rejected this ticket. No refund was issued.</p>
+          {FeedbackWidget}
         </CardContent>
       </Card>
     );
@@ -207,6 +242,7 @@ export function DecisionPanel({
               ? `Refund of ${formatMoney(Number((executed.payload as { amount: number }).amount))} executed (mock).`
               : "Resolved as a denial — no refund issued."}
           </p>
+          {FeedbackWidget}
         </CardContent>
       </Card>
     );

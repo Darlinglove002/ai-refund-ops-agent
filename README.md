@@ -112,6 +112,16 @@ pure operational policy that sits *after* the guardrail, never a way
 around it: a proposal that failed the guardrail check can never
 auto-approve, no matter how small the amount.
 
+Amount isn't the only signal: a customer who already received a refund in
+the last 30 days always goes to a human too, regardless of size
+(`countRecentRefunds` in [`runAgent.ts`](src/lib/agent/runAgent.ts)). A
+real payments system would run this kind of check against IP, device, and
+card fingerprints correlated across accounts — this repo's schema doesn't
+have any of that data, and inventing fake IP/device fields just to look
+more sophisticated would be exactly the kind of hollow complexity this
+project is trying not to be. Counting repeat requests from the *same*
+customer is the one velocity signal the actual data supports.
+
 Adding that threshold surfaced a real bug: [`decide/route.ts`](src/app/api/tickets/[id]/decide/route.ts)
 originally read a ticket's status, checked it was `awaiting_approval`,
 then wrote the outcome — two requests hitting Approve on the same ticket
@@ -126,6 +136,14 @@ The `/tickets` overview page aggregates every run into a small dashboard —
 tickets processed, auto- vs. human-approved counts, guardrail catches, and
 total mock dollars refunded — pulled straight from the `ticket_actions`
 log with no separate analytics pipeline.
+
+Every resolved ticket also carries a 👍/👎 "did the agent reason well
+here?" prompt for whoever closes it ([`feedback/route.ts`](src/app/api/tickets/[id]/feedback/route.ts)).
+It doesn't retrain anything — this project doesn't run its own model
+training — but it's the raw material a real feedback loop would be built
+from: ticket → the agent's actual reasoning → a human's verdict on it,
+all in one place instead of scattered across support tickets nobody
+revisits.
 
 ## Stack
 
@@ -200,6 +218,37 @@ numbers on purpose:
 The gap between those two numbers is the entire argument for the guardrail
 existing. See [`evals/cases.ts`](evals/cases.ts) for the scenarios and
 [`evals/results.md`](evals/results.md) for the latest run.
+
+## Known limitations & path to production
+
+Deliberately out of scope for a demo with a few dozen tickets and no real
+users — left as-is on purpose rather than built out, per YAGNI, but worth
+being explicit about what "production" would actually require:
+
+- **Idempotency keys on the payment call.** [`mockIssueRefund`](src/lib/agent/mockStripe.ts)
+  is a synchronous no-op — there's no network call to retry, so there's
+  nothing to make idempotent yet. A real Stripe integration needs an
+  idempotency key on the refund call itself: a serverless function can time
+  out *after* Stripe processes a refund but *before* it confirms, and a
+  naive retry would refund twice. The atomic status claim in
+  [`decide/route.ts`](src/app/api/tickets/[id]/decide/route.ts) prevents
+  two *requests* from double-executing; it doesn't protect a single request
+  that retries against a flaky payment API.
+- **Real auth and RBAC.** There's no login — anyone with the URL can act as
+  "the reviewer." A real version needs actual sessions (Supabase Auth) and
+  role checks enforced by Postgres Row Level Security policies, not just
+  application code, so a bug in a Next.js route can't accidentally expose
+  another tenant's tickets.
+- **Pagination, filtering, full-text search.** The ticket list loads
+  everything at once. Fine for a demo that will never hold more than a few
+  dozen rows; a real support queue needs paginated, filterable, indexed
+  queries — not something worth building against data that doesn't exist.
+- **Fraud/velocity signals beyond same-customer repeat requests.** See
+  [Risk-tiered automation](#risk-tiered-automation-and-a-concurrency-bug-that-actually-got-caught)
+  above — a real system would correlate device, IP, and card fingerprints
+  across accounts; this one only checks repeat requests from the same
+  customer, because that's the only signal the schema actually has data
+  for.
 
 ## What's next
 

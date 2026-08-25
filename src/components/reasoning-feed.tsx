@@ -180,6 +180,17 @@ function buildDisplayItems(actions: TicketActionRow[]): DisplayItem[] {
         });
         break;
 
+      case "human_feedback":
+        items.push({
+          id: action.id,
+          icon: p.rating === "good" ? "👍" : "👎",
+          title: p.rating === "good" ? "Feedback: agent reasoned well" : "Feedback: agent got it wrong",
+          detail: (p.note as string) || undefined,
+          tone: p.rating === "good" ? "ok" : "warn",
+          createdAt: action.created_at,
+        });
+        break;
+
       case "mock_refund_executed":
         items.push({
           id: action.id,

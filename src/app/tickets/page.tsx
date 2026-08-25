@@ -44,7 +44,7 @@ export default async function TicketsIndexPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <StatTile label="Tickets processed" value={String(stats.totalTickets)} />
+        <StatTile label="Total tickets" value={String(stats.totalTickets)} />
         <StatTile label="Auto-approved (no human click)" value={String(stats.autoApprovedCount)} tone="ok" />
         <StatTile label="Approved by a human" value={String(stats.humanApprovedCount)} tone="ok" />
         <StatTile label="Rejected by a human" value={String(stats.humanRejectedCount)} tone="block" />
@@ -57,6 +57,10 @@ export default async function TicketsIndexPage() {
           label="Total refunded (mock)"
           value={`$${stats.totalRefunded.toFixed(2)}`}
           tone={stats.totalRefunded > 0 ? "ok" : undefined}
+        />
+        <StatTile
+          label="Reviewer feedback: agent reasoned well"
+          value={`${stats.feedbackGoodCount} 👍 / ${stats.feedbackBadCount} 👎`}
         />
       </div>
 
