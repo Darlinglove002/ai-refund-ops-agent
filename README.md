@@ -19,10 +19,12 @@ other engineers figuring out how to do the same thing safely:
   loses no work — see [A real interruption](#a-real-interruption-not-staged).
 - **Accuracy is measured, not assumed.** [`evals/`](evals) runs the real
   agent against 28 cases — normal, boundary, and adversarial — and reports
-  agent-only vs. system-level accuracy. Latest run: **85.7% agent-only**,
-  **96.4% system accuracy** (agent correct, or the guardrail caught its
-  mistake), **0/28 over-limit refunds ever leaked past the guardrail**.
-  Full breakdown: [`evals/results.md`](evals/results.md).
+  agent-only vs. system-level accuracy. Latest run: **78.6% agent-only**,
+  **100% system accuracy** (agent correct, or the guardrail caught its
+  mistake), **0/28 over-limit refunds ever leaked past the guardrail**. The
+  agent-only number moves between runs — this is an LLM, not a fixed
+  function — the system number staying at or near 100% across runs is the
+  actual claim. Full breakdown: [`evals/results.md`](evals/results.md).
 - **Not every decision needs a human, but the ones that matter always do.**
   Small refunds that clear the guardrail auto-execute; anything larger, or
   any denial, goes to a person — see [Risk-tiered automation](#risk-tiered-automation-and-a-concurrency-bug-that-actually-got-caught)
@@ -105,10 +107,10 @@ and compares. Reproduce it yourself in Demo Mode
 transparent injection attempt, but the guardrail catch has nothing to do
 with that; the model's date arithmetic was just wrong.
 
-The `evals/` suite (below) caught 3 more agent mistakes like this across 28
-cases — a date-window miscalculation and two cases where an injection
-attempt actually did sway the model into proposing an unearned refund —
-and never once let an over-limit refund past the guardrail. Full
+The `evals/` suite (below) catches more agent mistakes like this on every
+run — date-window miscalculations, injection attempts that actually did
+sway the model, even a malformed tool call once — and has never once let
+an over-limit refund past the guardrail across any run. Full
 breakdown: [`evals/results.md`](evals/results.md).
 
 ### A real interruption (not staged)
