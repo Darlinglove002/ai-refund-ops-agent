@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAction } from "@/lib/agent/log";
 import { mockIssueRefund } from "@/lib/agent/mockStripe";
 
-interface DecideBody {
-  action: "approve" | "reject" | "modify";
-  decision?: "refund" | "deny";
-  refundAmount?: number;
-  note?: string;
-}
+// Never trust a request body just because TypeScript says it has a shape —
+// that's a compile-time claim about our own code, not a guarantee about
+// what actually arrived over the network. Parsed and rejected at runtime.
+const decideBodySchema = z.object({
+  action: z.enum(["approve", "reject", "modify"]),
+  decision: z.enum(["refund", "deny"]).optional(),
+  refundAmount: z.number().finite().min(0).optional(),
+  note: z.string().max(500).optional(),
+});
 
 // Atomically transitions the ticket out of "awaiting_approval" — the WHERE
 // clause on status means only one of two concurrent requests (e.g. two
@@ -37,7 +41,14 @@ const ALREADY_RESOLVED = NextResponse.json(
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = (await request.json()) as DecideBody;
+
+  const rawBody = await request.json().catch(() => null);
+  const parsed = decideBodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten() }, { status: 400 });
+  }
+  const body = parsed.data;
+
   const supabase = createServiceClient();
 
   const { data: ticket, error: ticketError } = await supabase
