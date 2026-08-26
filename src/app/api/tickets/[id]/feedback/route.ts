@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAction } from "@/lib/agent/log";
 
-interface FeedbackBody {
-  rating: "good" | "bad";
-  note?: string;
-}
+const feedbackBodySchema = z.object({
+  rating: z.enum(["good", "bad"]),
+  note: z.string().max(500).optional(),
+});
 
 // A minimal human-feedback loop: once a ticket is resolved, a reviewer can
 // mark whether the agent's original reasoning held up. This doesn't retrain
@@ -14,11 +15,13 @@ interface FeedbackBody {
 // built from.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = (await request.json()) as FeedbackBody;
 
-  if (body.rating !== "good" && body.rating !== "bad") {
-    return NextResponse.json({ error: "rating must be 'good' or 'bad'." }, { status: 400 });
+  const rawBody = await request.json().catch(() => null);
+  const parsed = feedbackBodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten() }, { status: 400 });
   }
+  const body = parsed.data;
 
   const supabase = createServiceClient();
 

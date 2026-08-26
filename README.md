@@ -309,6 +309,20 @@ being explicit about what "production" would actually require:
   across accounts; this one only checks repeat requests from the same
   customer, because that's the only signal the schema actually has data
   for.
+- **Rate limiting.** None of the API routes are rate-limited, which matters
+  more than usual here since there's no auth at all — `/api/tickets/[id]/analyze`
+  makes a real, billed Anthropic API call per hit. The practical exposure is
+  smaller than it sounds (there's no public "create a ticket" endpoint, and
+  a ticket can only be analyzed once per state), but it's not zero, and it's
+  not solved by adding an in-memory counter either — this runs on Vercel's
+  serverless functions, which don't share memory across invocations or
+  instances, so an in-process rate limiter would silently fail to limit
+  anything most of the time while looking like it works. The real fix is a
+  shared store (Upstash Redis is the standard pairing with Vercel) backing
+  actual request counts per IP. Not added here because it means asking you
+  to stand up yet another external account for a demo whose abuse surface
+  is already fairly narrow — but building an in-memory version instead
+  would have been worse: security theater that doesn't actually work.
 
 ## What's next
 
