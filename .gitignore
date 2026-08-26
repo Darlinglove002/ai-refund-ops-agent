@@ -42,4 +42,4 @@ yarn-error.log*
 next-env.d.ts
 
 # personal cross-project reference, not specific to this repo
-/ENGINEERING_PLAYBOOK.md
+/ecta.md
