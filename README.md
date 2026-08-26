@@ -30,6 +30,34 @@ other engineers figuring out how to do the same thing safely:
 
 ## How it works
 
+Where each piece actually runs:
+
+```mermaid
+flowchart LR
+    Browser(["Browser"])
+
+    subgraph Vercel["Vercel — Next.js"]
+        UI["Ticket UI\n(Server Components)"]
+        API["API routes\n/api/tickets/*"]
+    end
+
+    DB[("Supabase Postgres\ntickets / mock_users /\nmock_transactions /\nticket_actions")]
+    Claude["Anthropic API\nclaude-sonnet-5"]
+    Stripe["Mock Stripe\n(in-process, no network call)"]
+
+    Browser -->|reads| UI
+    Browser -->|Analyze / Approve / Reject| API
+    UI -->|service-role client| DB
+    API -->|service-role client| DB
+    API -->|tool calling| Claude
+    API -->|on approve, if refund| Stripe
+```
+
+Local dev and CI ([`.github/workflows/evals.yml`](.github/workflows/evals.yml))
+run this exact same stack against a throwaway Postgres in Docker instead of
+the hosted project — see [Setup](#setup) below. The request/response flow
+for one ticket looks like this:
+
 ```mermaid
 sequenceDiagram
     participant Customer
@@ -240,6 +268,14 @@ numbers on purpose:
 The gap between those two numbers is the entire argument for the guardrail
 existing. See [`evals/cases.ts`](evals/cases.ts) for the scenarios and
 [`evals/results.md`](evals/results.md) for the latest run.
+
+**This also runs in CI** ([`.github/workflows/evals.yml`](.github/workflows/evals.yml))
+on every push to `main` and every pull request — a fresh Postgres in
+Docker, the real agent, the same 28 cases. It fails the build on an
+uncaught miss (a wrong decision that got past the guardrail) or an error;
+a guardrail catch or ordinary model non-determinism on a borderline case
+doesn't fail it, since those are the system working as designed, not a
+regression.
 
 ## Known limitations & path to production
 
