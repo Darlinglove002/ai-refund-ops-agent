@@ -26,12 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Temporary: confirms whether the secret is reaching the job at all,
-      # without ever printing its value.
-      - name: Debug secret presence
-        run: |
-          node -e "const v = process.env.ANTHROPIC_API_KEY || ''; console.log('ANTHROPIC_API_KEY set:', v.length > 0, '| length:', v.length, '| starts with sk-ant-:', v.startsWith('sk-ant-'));"
-
       # Same path a human runs locally (npm run setup): starts Postgres +
       # API in Docker, applies supabase/migrations and supabase/seed.sql,
       # writes .env.local. This doubles as a check that the documented
