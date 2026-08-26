@@ -149,10 +149,16 @@ async function main() {
     if (createdUserIds.length) await supabase.from("mock_users").delete().in("id", createdUserIds);
   }
 
-  writeReport(results);
+  return writeReport(results);
 }
 
-function writeReport(results: CaseResult[]) {
+// Returns true if CI should fail the build: an uncaught miss means a wrong
+// decision reached "awaiting approval" without the guardrail catching it,
+// and an error means the run itself broke. AGENT_INCOMPLETE and
+// GUARDRAIL_CAUGHT are not failures — the guardrail catching a mistake is
+// the system working as designed, and ordinary LLM non-determinism on a
+// borderline case isn't a regression.
+function writeReport(results: CaseResult[]): boolean {
   const total = results.length;
   const count = (o: Outcome) => results.filter((r) => r.outcome === o).length;
   const agentCorrect = count("AGENT_CORRECT");
@@ -219,10 +225,16 @@ function writeReport(results: CaseResult[]) {
   const outPath = path.join(__dirname, "results.md");
   fs.writeFileSync(outPath, lines.join("\n"));
   console.log(`\nWrote ${outPath}`);
+
+  const hasFailure = uncaughtMiss > 0 || errors > 0;
+  if (hasFailure) {
+    console.log(`\n${uncaughtMiss} uncaught miss(es), ${errors} error(s) — failing.`);
+  }
+  return hasFailure;
 }
 
 main()
-  .then(() => process.exit(0))
+  .then((hasFailure) => process.exit(hasFailure ? 1 : 0))
   .catch((err) => {
     console.error(err);
     process.exit(1);

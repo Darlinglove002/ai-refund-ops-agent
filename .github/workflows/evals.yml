@@ -1,0 +1,45 @@
+name: Evals
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Same path a human runs locally (npm run setup): starts Postgres +
+      # API in Docker, applies supabase/migrations and supabase/seed.sql,
+      # writes .env.local. This doubles as a check that the documented
+      # setup instructions actually work from a clean checkout.
+      - name: Start local Supabase and write .env.local
+        run: npm run setup
+
+      # Creates its own throwaway data, runs the real agent against 28
+      # cases, deletes what it created. Fails the build on an uncaught
+      # miss (a wrong decision that slipped past the guardrail) or an
+      # error — not on ordinary model non-determinism or a guardrail catch,
+      # since those are the system working as designed.
+      - name: Run agent evals
+        run: npm run eval
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: evals/results.md

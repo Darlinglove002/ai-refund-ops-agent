@@ -35,9 +35,14 @@ const existingEnv = existsSync(envPath)
     ? readFileSync(envExamplePath, "utf8")
     : "";
 
+// Prefers an existing .env.local value (so a saved key survives re-running
+// this script), then falls back to the current process environment — e.g.
+// a GitHub Actions secret exported as ANTHROPIC_API_KEY, so CI can run
+// this exact same setup path instead of a parallel one nobody's testing.
 function getExisting(key) {
   const match = existingEnv.match(new RegExp(`^${key}=(.*)$`, "m"));
-  return match ? match[1].trim() : "";
+  if (match && match[1].trim()) return match[1].trim();
+  return process.env[key] ?? "";
 }
 
 const anthropicKey = getExisting("ANTHROPIC_API_KEY");
