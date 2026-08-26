@@ -42,4 +42,4 @@ yarn-error.log*
 next-env.d.ts
 
 # personal cross-project reference, not specific to this repo
-/ARCHITECTURE_REFERENCE.md
+/ENGINEERING_PLAYBOOK.md
