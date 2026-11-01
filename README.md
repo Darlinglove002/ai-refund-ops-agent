@@ -328,6 +328,12 @@ being explicit about what "production" would actually require:
   check itself errors, the billed call is refused. This caps *this app's*
   spend; set a monthly spend limit on the Anthropic key as well, as the
   backstop that doesn't depend on any code being correct.
+- **Public write endpoints.** Approve/reject and feedback are open to anyone
+  with the URL (there's no login — see above). They refuse requests that
+  come from another website (an `Origin` check), are rate-limited per
+  visitor, and return generic error messages instead of raw database/SDK
+  errors. They only ever touch mock data; a real deployment needs real auth
+  in front of them.
 
 ## What's next
 

@@ -46,6 +46,24 @@ function tooMany(message: string, retryAfter: number) {
 }
 
 /**
+ * Light per-visitor limit for routes that write to the database but don't
+ * spend money (approve/reject, feedback). Stops one visitor from scripting
+ * through the whole demo queue. Fails open: nothing billed is at stake, and
+ * a limiter hiccup shouldn't take the demo down.
+ *
+ *  - WRITE_PER_IP_PER_HOUR (default 60)
+ */
+export async function guardWrite(request: Request, scope: string): Promise<NextResponse | null> {
+  try {
+    const res = await consume(`ip:${scope}:${clientId(request)}`, HOUR, intFromEnv("WRITE_PER_IP_PER_HOUR", 60));
+    return res.allowed ? null : tooMany("Too many requests from your connection. Please try again later.", res.retryAfter);
+  } catch (err) {
+    console.error("write rate limiter failed, allowing request:", err);
+    return null;
+  }
+}
+
+/**
  * Guards a route that makes billed Anthropic calls. Returns a response to send
  * back if the call must be refused, or null if it may proceed.
  *

@@ -16,10 +16,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ]);
 
   if (ticketError || !ticket) {
-    return NextResponse.json({ error: ticketError?.message ?? "Ticket not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
   if (actionsError) {
-    return NextResponse.json({ error: actionsError.message }, { status: 500 });
+    console.error("loading ticket actions failed:", actionsError);
+    return NextResponse.json({ error: "Could not load this ticket." }, { status: 500 });
   }
 
   let customer = null;

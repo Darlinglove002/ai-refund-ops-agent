@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAction } from "@/lib/agent/log";
 import { mockIssueRefund } from "@/lib/agent/mockStripe";
+import { guardWrite } from "@/lib/rateLimit";
+import { rejectCrossOrigin } from "@/lib/requestGuards";
 
 // Never trust a request body just because TypeScript says it has a shape —
 // that's a compile-time claim about our own code, not a guarantee about
@@ -41,6 +43,11 @@ const ALREADY_RESOLVED = NextResponse.json(
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const crossOrigin = rejectCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+  const limited = await guardWrite(request, "decide");
+  if (limited) return limited;
 
   const rawBody = await request.json().catch(() => null);
   const parsed = decideBodySchema.safeParse(rawBody);

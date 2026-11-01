@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAction } from "@/lib/agent/log";
+import { guardWrite } from "@/lib/rateLimit";
+import { rejectCrossOrigin } from "@/lib/requestGuards";
 
 const feedbackBodySchema = z.object({
   rating: z.enum(["good", "bad"]),
@@ -15,6 +17,11 @@ const feedbackBodySchema = z.object({
 // built from.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const crossOrigin = rejectCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+  const limited = await guardWrite(request, "feedback");
+  if (limited) return limited;
 
   const rawBody = await request.json().catch(() => null);
   const parsed = feedbackBodySchema.safeParse(rawBody);
