@@ -328,6 +328,13 @@ being explicit about what "production" would actually require:
   check itself errors, the billed call is refused. This caps *this app's*
   spend; set a monthly spend limit on the Anthropic key as well, as the
   backstop that doesn't depend on any code being correct.
+- **Daily demo reset.** Because anyone can resolve a ticket, a Vercel Cron job
+  ([`vercel.json`](vercel.json)) calls [`/api/cron/reset-demo`](src/app/api/cron/reset-demo/route.ts)
+  once a day (04:00 UTC). It rolls back what visitors did, restores each ticket
+  to where the agent left it, and re-dates the seed customers relative to
+  today, so "paid 3 days ago" stays true. It's plain SQL
+  ([`0004_reset_demo.sql`](supabase/migrations/0004_reset_demo.sql)) — no
+  Anthropic call, no cost. The route only accepts Vercel's `CRON_SECRET`.
 - **Public write endpoints.** Approve/reject and feedback are open to anyone
   with the URL (there's no login — see above). They refuse requests that
   come from another website (an `Origin` check), are rate-limited per

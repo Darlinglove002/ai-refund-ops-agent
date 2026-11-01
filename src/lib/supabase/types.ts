@@ -72,6 +72,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      reset_demo: {
+        Args: Record<string, never>;
+        Returns: Record<string, number>;
+      };
       consume_rate_limit: {
         Args: { p_key: string; p_window_seconds: number; p_limit: number; p_cost?: number };
         Returns: { out_allowed: boolean; out_hits: number; out_retry_after: number }[];
