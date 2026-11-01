@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { runAgentForTicket, AgentRunError } from "@/lib/agent/runAgent";
+import { guardBilledCall } from "@/lib/rateLimit";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const blocked = await guardBilledCall(request, "analyze");
+  if (blocked) return blocked;
 
   try {
     await runAgentForTicket(id);

@@ -1,5 +1,9 @@
 # AI Refund Ops Agent
 
+**[Live demo → ai-refund-ops-agent.vercel.app](https://ai-refund-ops-agent.vercel.app)** · no sign-up, uses fake customers and fake payments
+
+![Ticket queue and overview dashboard](docs/tickets.png)
+
 A human-in-the-loop billing support agent. It reads a customer's refund
 request, pulls their real account and payment history, applies the refund
 policy, and proposes a decision — but it never moves money itself. A human
@@ -309,20 +313,21 @@ being explicit about what "production" would actually require:
   across accounts; this one only checks repeat requests from the same
   customer, because that's the only signal the schema actually has data
   for.
-- **Rate limiting.** None of the API routes are rate-limited, which matters
-  more than usual here since there's no auth at all — `/api/tickets/[id]/analyze`
-  makes a real, billed Anthropic API call per hit. The practical exposure is
-  smaller than it sounds (there's no public "create a ticket" endpoint, and
-  a ticket can only be analyzed once per state), but it's not zero, and it's
-  not solved by adding an in-memory counter either — this runs on Vercel's
-  serverless functions, which don't share memory across invocations or
-  instances, so an in-process rate limiter would silently fail to limit
-  anything most of the time while looking like it works. The real fix is a
-  shared store (Upstash Redis is the standard pairing with Vercel) backing
-  actual request counts per IP. Not added here because it means asking you
-  to stand up yet another external account for a demo whose abuse surface
-  is already fairly narrow — but building an in-memory version instead
-  would have been worse: security theater that doesn't actually work.
+- **Spend protection (rate limiting).** The two routes that make billed
+  Anthropic calls — `/api/tickets/[id]/analyze` and `/api/demo/prime` — are
+  limited per visitor (default 10 runs/hour) and by a shared budget across
+  all visitors (default 25 runs/UTC day and 200 per 30 days), all configurable
+  via env (see [`.env.example`](.env.example)). A request over the limit gets
+  an HTTP 429 ("Too Many Requests") with a plain-language message; tickets
+  that were already analyzed stay browsable. The counters live in Postgres
+  ([`0003_rate_limits.sql`](supabase/migrations/0003_rate_limits.sql)) rather
+  than in memory, because Vercel's serverless instances don't share memory —
+  an in-process limiter would look like it works while limiting almost
+  nothing. Visitor addresses are stored only as a salted hash, the limiter
+  function is callable by the service role alone, and it fails closed: if the
+  check itself errors, the billed call is refused. This caps *this app's*
+  spend; set a monthly spend limit on the Anthropic key as well, as the
+  backstop that doesn't depend on any code being correct.
 
 ## What's next
 
