@@ -28,6 +28,7 @@ create or replace function consume_rate_limit(
 )
 returns table (out_allowed boolean, out_hits integer, out_retry_after integer)
 language plpgsql
+set search_path = public, pg_temp
 as $$
 declare
   v_window timestamptz;
